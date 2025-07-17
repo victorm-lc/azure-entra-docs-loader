@@ -1,187 +1,310 @@
-# Accessing Azure Blob Storage through Azure AI Foundry
+# Azure Blob Storage Loaders with Entra ID
 
-This repository demonstrates how to access Azure Blob Storage through Azure AI Foundry connections, providing a solution for scenarios where LangChain's Azure blob loaders don't support your authentication method (e.g., service principal credentials).
+> **TL;DR:** These are drop-in replacements for LangChain's Azure blob loaders that properly support service principal authentication via Entra ID.
 
-## Problem Statement
+This repository provides two custom LangChain document loaders that solve authentication issues with Azure Blob Storage when using service principals:
 
-LangChain's Azure blob storage loaders (`AzureBlobStorageContainerLoader` and `AzureBlobStorageFileLoader`) require either:
-- A connection string (with account key)
-- Account URL with DefaultAzureCredential
+- `AzureBlobStorageContainerEntraLoader` - Loads all documents from a container
+- `AzureBlobStorageEntraLoader` - Loads specific files or all files from a container
 
-However, they don't directly support service principal authentication with client credentials. If your organization uses service principals for authentication, you need an alternative approach.
+## Why These Loaders?
 
-## Solution: Use Azure AI Foundry as a Bridge
+LangChain's built-in Azure blob loaders (`AzureBlobStorageContainerLoader` and `AzureBlobStorageFileLoader`) have issues with service principal authentication. These custom loaders:
 
-Azure AI Foundry allows you to configure storage connections with various authentication methods. By accessing your storage through AI Foundry's connection management, you can:
-
-1. Use service principal authentication to connect to AI Foundry
-2. Retrieve storage account credentials from AI Foundry connections
-3. Use these credentials with LangChain loaders
+- ✅ **Properly support service principal authentication**
+- ✅ **Use DefaultAzureCredential for seamless auth**
+- ✅ **Drop-in replacements with same interface**
+- ✅ **Enhanced metadata with blob properties**
+- ✅ **Robust error handling**
 
 ## Prerequisites
 
-- Azure subscription with AI Foundry project
-- Service principal with appropriate permissions
-- Python 3.8+
-- Storage account connected to your AI Foundry project
+Before using these loaders, you need:
+1. **Azure Storage Account** with blob containers
+2. **Service Principal** with appropriate permissions
+3. **Python 3.8+** with UV package manager
 
-## Setup
+## Installation
 
-### 1. Install Dependencies
+This project uses [UV](https://docs.astral.sh/uv/) as the package manager for fast, reliable dependency management.
+
+### Install UV (if not already installed)
 
 ```bash
-pip install azure-ai-projects azure-identity langchain-community azure-storage-blob python-dotenv
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-For PDF processing:
+### Install Dependencies
+
 ```bash
-pip install unstructured unstructured[pdf]
+# Install all dependencies
+uv sync
+
+# Or install manually
+uv add azure-identity azure-storage-blob langchain-core langchain-community langchain-unstructured unstructured python-dotenv
 ```
 
-### 2. Environment Variables
+### Alternative: Traditional pip install
 
-Create a `.env` file with your credentials:
+```bash
+pip install -r requirements.txt
+```
 
-```env
-# Azure AI Foundry endpoint (with project ID)
-AZURE_AI_ENDPOINT=https://your-resource.cognitiveservices.azure.com/api/projects/your-project-id
+## Azure Setup
 
+### Step 1: Create Service Principal
+
+1. **Go to Azure Portal** → **Azure Active Directory** → **App registrations**
+2. **Click "New registration"**
+3. **Enter a name** (e.g., "LangChain Blob Loader")
+4. **Click "Register"**
+5. **Copy the Application (client) ID** and **Directory (tenant) ID**
+6. **Go to "Certificates & secrets"** → **"New client secret"**
+7. **Copy the client secret value** (save it immediately!)
+
+### Step 2: Assign Storage Permissions
+
+1. **Go to your Storage Account** → **Access Control (IAM)**
+2. **Click "Add role assignment"**
+3. **Select "Storage Blob Data Reader"** role
+4. **Select your service principal** from Step 1
+5. **Click "Review + assign"**
+
+### Step 3: Set Environment Variables
+
+Create a `.env` file in your project root:
+
+```bash
 # Service Principal credentials
-AZURE_CLIENT_ID=your-service-principal-client-id
-AZURE_TENANT_ID=your-azure-tenant-id
-AZURE_CLIENT_SECRET=your-service-principal-secret
+AZURE_CLIENT_ID=your-application-client-id
+AZURE_TENANT_ID=your-directory-tenant-id
+AZURE_CLIENT_SECRET=your-client-secret
 
-# Optional: Specific storage container
-STORAGE_CONTAINER_NAME=your-container-name
+# Storage configuration (optional, has working defaults)
+AZURE_STORAGE_ACCOUNT_NAME=yourstorageaccount
+AZURE_STORAGE_CONTAINER=yourcontainer
 ```
 
-### 3. Service Principal Permissions
+## Quick Start
 
-Your service principal needs:
-- `Microsoft.CognitiveServices/accounts/AIServices/connections/read` permission on the AI Foundry resource
-- Appropriate access to the AI Foundry project
-
-## Key Challenges & Solutions
-
-### 1. SDK Migration
-The newer `azure.ai.projects` SDK has different attributes than the older `azure.ai.resources`:
-- Old: `ai_client.data`
-- New: `ai_client.connections`
-
-### 2. Authentication Requirements
-The AI Foundry connections API requires `DefaultAzureCredential` or similar Azure Identity credentials:
-```python
-from azure.identity import DefaultAzureCredential
-credential = DefaultAzureCredential()  # Uses env vars automatically
-```
-
-### 3. Endpoint Format
-The endpoint must include the project ID:
-```
-https://your-resource.cognitiveservices.azure.com/api/projects/your-project-id
-```
-
-### 4. Extracting Credentials
-Connection objects don't directly expose credentials. Use the `as_dict()` method:
-```python
-conn_details = ai_client.connections.get(
-    name=connection_name,
-    include_credentials=True
-)
-conn_dict = conn_details.as_dict()
-account_key = conn_dict['credentials']['key']
-```
-
-### 5. Container Names
-Container names in Azure are case-sensitive. Verify the exact name using Azure Portal or Storage Explorer.
-
-## Usage
-
-### Basic Example
+### 1. Basic Usage
 
 ```python
-from azure.ai.projects import AIProjectClient
-from azure.identity import DefaultAzureCredential
-from langchain_community.document_loaders import AzureBlobStorageContainerLoader
-import os
-from dotenv import load_dotenv
+from azure_blob_entra_container_loader import AzureBlobStorageContainerEntraLoader
+from azure_blob_entra_loader import AzureBlobStorageEntraLoader
 
-load_dotenv()
-
-# Connect to AI Foundry
-ai_client = AIProjectClient(
-    credential=DefaultAzureCredential(),
-    endpoint=os.getenv("AZURE_AI_ENDPOINT")
+# Load all documents from container
+loader = AzureBlobStorageContainerEntraLoader(
+    storage_account_name="yourstorageaccount",
+    container="documents"
 )
+documents = loader.load()
 
-# Find storage connection
-storage_conn_name = None
-for conn in ai_client.connections.list():
-    if 'storage' in conn.name.lower():
-        storage_conn_name = conn.name
-        break
-
-# Get connection details with credentials
-conn_details = ai_client.connections.get(
-    name=storage_conn_name,
-    include_credentials=True
+# Load specific file
+file_loader = AzureBlobStorageEntraLoader(
+    storage_account_name="yourstorageaccount",
+    container_name="documents",
+    blob_name="report.pdf"
 )
+document = file_loader.load()
+```
 
-# Extract credentials
-conn_dict = conn_details.as_dict()
-account_name = conn_dict['account_name']
-account_key = conn_dict['credentials']['key']
+### 2. Test the Setup
 
-# Create connection string
-conn_string = f"DefaultEndpointsProtocol=https;AccountName={account_name};AccountKey={account_key};EndpointSuffix=core.windows.net"
+```bash
+# Activate UV environment
+uv run python azure_blob_entra_container_loader.py
 
-# Use with LangChain loader
-loader = AzureBlobStorageContainerLoader(
-    conn_str=conn_string,
-    container=os.getenv("STORAGE_CONTAINER_NAME")
+# Or with traditional Python
+python azure_blob_entra_container_loader.py
+```
+
+## Usage Examples
+
+### Container Loader (Multiple Files)
+
+```python
+from azure_blob_entra_container_loader import AzureBlobStorageContainerEntraLoader
+import re
+
+# Load all documents
+loader = AzureBlobStorageContainerEntraLoader(
+    storage_account_name="yourstorageaccount",
+    container="documents"
 )
+documents = loader.load()
 
-# Load documents
+# Load with filters
+loader = AzureBlobStorageContainerEntraLoader(
+    storage_account_name="yourstorageaccount",
+    container="documents",
+    prefix="reports/",  # Only files in reports/ folder
+    file_pattern=re.compile(r"\.(pdf|docx)$", re.IGNORECASE)  # Only PDF and DOCX
+)
+documents = loader.load()
+
+# Convenience function
+from azure_blob_entra_container_loader import load_azure_blob_documents
+
+docs = load_azure_blob_documents(
+    storage_account_name="yourstorageaccount",
+    container="documents",
+    prefix="reports/",
+    file_pattern=re.compile(r"\.pdf$", re.IGNORECASE)
+)
+```
+
+### File Loader (Single Files)
+
+```python
+from azure_blob_entra_loader import AzureBlobStorageEntraLoader
+
+# Load specific file
+loader = AzureBlobStorageEntraLoader(
+    storage_account_name="yourstorageaccount",
+    container_name="documents",
+    blob_name="important-report.pdf"
+)
+documents = loader.load()
+
+# Load all files in container (same as container loader)
+loader = AzureBlobStorageEntraLoader(
+    storage_account_name="yourstorageaccount",
+    container_name="documents"
+)
 documents = loader.load()
 ```
 
-### Complete Working Example
+## Document Metadata
 
-See `test.py` for a complete implementation with error handling and debugging output.
+Both loaders enhance documents with rich metadata:
 
-### Service Principal Setup Helper
+```python
+{
+    "source": "https://yourstorageaccount.blob.core.windows.net/documents/report.pdf",
+    "blob_name": "report.pdf",
+    "container": "documents",
+    "storage_account": "yourstorageaccount",
+    "file_size": 1024576,
+    "last_modified": "2024-01-15T10:30:00Z",
+    "content_type": "application/pdf"
+}
+```
 
-Run `setup_service_principal_auth.py` to verify your service principal configuration and test authentication methods.
+## Comparison with LangChain Built-ins
+
+| Feature | LangChain Built-in | These Custom Loaders |
+|---------|-------------------|---------------------|
+| Service Principal Auth | ❌ Problematic | ✅ Works perfectly |
+| Connection String | ✅ Supported | ✅ Supported |
+| DefaultAzureCredential | ⚠️ Inconsistent | ✅ Reliable |
+| Metadata | ✅ Basic | ✅ Enhanced |
+| Error Handling | ⚠️ Basic | ✅ Robust |
+
+## Migration from LangChain Built-ins
+
+### Before (LangChain built-in)
+```python
+from langchain_community.document_loaders import AzureBlobStorageContainerLoader
+
+# Often fails with service principals
+loader = AzureBlobStorageContainerLoader(
+    account_url="https://yourstorageaccount.blob.core.windows.net",
+    container="documents"
+)
+```
+
+### After (Custom loader)
+```python
+from azure_blob_entra_container_loader import AzureBlobStorageContainerEntraLoader
+
+# Works reliably with service principals
+loader = AzureBlobStorageContainerEntraLoader(
+    storage_account_name="yourstorageaccount",
+    container="documents"
+)
+```
 
 ## Troubleshooting
 
-### Permission Denied Error
-If you get "PermissionDenied" when accessing connections:
-1. Verify service principal has the required permission: `Microsoft.CognitiveServices/accounts/AIServices/connections/read`
-2. Check that the service principal has access to the specific AI Foundry project
+### Common Issues
 
-### No Storage Connections Found
-1. Verify storage account is connected in AI Foundry portal
-2. Check connection type is `AzureBlob` or `AzureDataLakeGen2`
+1. **Authentication Error**: Ensure service principal has Storage Blob Data Reader role
+2. **Container Not Found**: Verify container name is correct (case-sensitive)
+3. **No Documents**: Check if container has files and file patterns match
+4. **Environment Variables**: Make sure `.env` file is in the correct location
 
-### Authentication Failures
-1. Ensure all environment variables are set correctly
-2. Test with `az login` to verify credentials work
-3. Use `DefaultAzureCredential()` which automatically uses env vars
+### Debug Steps
 
-## Security Notes
+```python
+# Test Azure credentials
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobServiceClient
 
-- Never commit `.env` files or credentials to version control
-- Use Azure Key Vault for production environments
-- Rotate service principal secrets regularly
-- Apply principle of least privilege to service principal permissions
+credential = DefaultAzureCredential()
+client = BlobServiceClient(
+    account_url="https://yourstorageaccount.blob.core.windows.net",
+    credential=credential
+)
 
-## Additional Resources
+# List containers
+for container in client.list_containers():
+    print(f"Container: {container.name}")
+```
 
-- [Azure AI Foundry Documentation](https://docs.microsoft.com/azure/ai-services/)
-- [LangChain Azure Integration](https://python.langchain.com/docs/integrations/document_loaders/azure_blob_storage)
-- [Azure Identity Library](https://docs.microsoft.com/python/api/azure-identity/)
+### Verify Service Principal Setup
+
+```bash
+# Check if service principal can access Azure
+az login --service-principal -u $AZURE_CLIENT_ID -p $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+
+# List storage accounts you have access to
+az storage account list --query "[].name" -o table
+```
+
+## Microsoft Azure Configuration Summary
+
+To get this working in Microsoft Azure:
+
+1. **Azure Active Directory**: Create App Registration (Service Principal)
+2. **Storage Account**: Assign "Storage Blob Data Reader" role to Service Principal
+3. **Networking**: Ensure storage account allows access from your location
+4. **Environment**: Set `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_SECRET`
+
+## Dependencies
+
+```
+azure-identity>=1.15.0
+azure-storage-blob>=12.19.0
+langchain-core>=0.1.0
+langchain-community>=0.0.20
+langchain-unstructured>=0.1.0
+unstructured[pdf]>=0.12.0
+python-dotenv>=1.0.0
+```
+
+## Development
+
+This project uses UV for dependency management:
+
+```bash
+# Install development dependencies
+uv sync --dev
+
+# Run tests
+uv run pytest
+
+# Format code
+uv run ruff format
+
+# Lint code
+uv run ruff check
+```
 
 ## License
 
-This project is licensed under the MIT License.
+MIT License
