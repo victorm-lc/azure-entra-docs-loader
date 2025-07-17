@@ -51,7 +51,11 @@ uv add azure-identity azure-storage-blob langchain-core langchain-community lang
 ### Alternative: Traditional pip install
 
 ```bash
-pip install -r requirements.txt
+# Install from pyproject.toml (recommended)
+pip install -e .
+
+# Or install specific dependencies
+pip install azure-identity azure-storage-blob langchain-community langchain-core langchain-unstructured "unstructured[pdf]"
 ```
 
 ## Azure Setup
