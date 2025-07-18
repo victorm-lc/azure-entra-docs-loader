@@ -146,20 +146,24 @@ python azure_blob_entra_loader.py
 The main demo showcases composable Azure document management tools:
 
 ```bash
-# Run the interactive demo
+# Run the automated demo workflow
 python modular_agent_example.py
-
-# Choose mode:
-# 1. Interactive chat - Chat with the agent
-# 2. Demo workflow - Automated demo of all tools
 ```
 
 ### Demo Workflow
-1. **Discovery** - Find available containers
-2. **Browse** - List documents without loading content  
-3. **Search** - Filter by metadata (filename, type, date, size)
-4. **Summarize** - AI-powered document summaries
-5. **Load** - Full document content when needed
+The script demonstrates the modular approach with these steps:
+
+1. **Discovery** - Find available containers in the storage account
+2. **Browse** - List documents in a container without loading content  
+3. **Search** - Filter documents by metadata (filename, type, date, size)
+4. **Summarize** - AI-powered document summaries with actual content
+5. **Load** - Full document content when needed (extensible for other use cases)
+
+### Key Features Demonstrated
+- **Modular tool composition** - Each tool has a single responsibility
+- **Efficient workflow** - Only loads content when needed
+- **Rich metadata** - Enhanced document properties and context
+- **Enterprise authentication** - Service principal support with Entra ID
 
 ## 🏢 Enterprise Deployment
 
