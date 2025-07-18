@@ -52,69 +52,8 @@ IMPORTANT: When users request to load a document, use summarize_document first t
     return agent
 
 def main():
-    """Main function to run the modular agent."""
-    print("🔧 Modular Azure Blob Storage Assistant")
-    print("=" * 50)
-    print("I use composable tools to help you discover, search, and load Azure documents!")
-    print()
-    print("My modular approach:")
-    print("1. 🔍 Discover containers → list_available_containers")
-    print("2. 📁 Browse documents → list_documents_in_container")
-    print("3. 🔎 Search by metadata → search_documents_by_metadata")
-    print("4. 📄 Summarize docs → summarize_document")
-    print("5. 📋 Load full content → load_document_from_blob")
-    print()
-    print("Try asking:")
-    print("- 'What containers are available?'")
-    print("- 'Show me documents in the docs container'")
-    print("- 'Find all PDF files from last month'")
-    print("- 'Summarize the example_study.pdf document'")
-    print("- 'Load the example_study.pdf document'")
-    print()
-    
-    # Create agent
-    agent = create_modular_azure_agent()
-    
-    # Default configuration
-    default_storage_account = os.getenv("AZURE_STORAGE_ACCOUNT_NAME", "langchaintesting1")
-    print(f"Default storage account: {default_storage_account}")
-    print(f"(You can specify different storage accounts in your requests)")
-    print()
-    
-    # Interactive chat loop
-    while True:
-        try:
-            user_input = input("You: ").strip()
-            
-            if user_input.lower() in ['exit', 'quit', 'bye']:
-                print("👋 Goodbye!")
-                break
-            
-            if not user_input:
-                continue
-            
-            # Add helpful context for storage account if not specified
-            if "storage_account_name" not in user_input.lower():
-                enhanced_input = f"{user_input} (Default storage account: {default_storage_account})"
-            else:
-                enhanced_input = user_input
-            
-            print("\n🤔 Thinking...")
-            
-            # Run the agent
-            response = agent.invoke({"messages": [("user", enhanced_input)]})
-            
-            # Extract the final response
-            final_message = response["messages"][-1]
-            print(f"\n🤖 Assistant: {final_message.content}")
-            print("\n" + "=" * 50 + "\n")
-            
-        except KeyboardInterrupt:
-            print("\n👋 Goodbye!")
-            break
-        except Exception as e:
-            print(f"\n❌ Error: {e}")
-            print("Please try again.\n")
+    """Main function to run the demo workflow."""
+    demo_workflow()
 
 def demo_workflow():
     """Demonstrate the modular workflow programmatically."""
@@ -167,10 +106,5 @@ if __name__ == "__main__":
         print("Please set this in your .env file or environment.")
         exit(1)
     
-    # Choose mode
-    mode = input("Choose mode:\n1. Interactive chat\n2. Demo workflow\nEnter 1 or 2: ").strip()
-    
-    if mode == "2":
-        demo_workflow()
-    else:
-        main()
+    # Run the demo workflow
+    main()
