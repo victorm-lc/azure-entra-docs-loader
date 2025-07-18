@@ -10,7 +10,7 @@ This repository provides:
 
 ## 🔧 Components
 
-### Document Loaders
+### Experimental Document Loaders
 - `AzureBlobStorageContainerEntraLoader` - Loads all documents from a container
 - `AzureBlobStorageEntraLoader` - Loads specific files or all files from a container
 
@@ -143,7 +143,7 @@ python azure_blob_entra_loader.py
 
 ## 🚀 LangGraph Tools Demo
 
-The main demo showcases enterprise-ready, composable Azure document management tools:
+The main demo showcases composable Azure document management tools:
 
 ```bash
 # Run the interactive demo
@@ -161,135 +161,8 @@ python modular_agent_example.py
 4. **Summarize** - AI-powered document summaries
 5. **Load** - Full document content when needed
 
-### Example Interactions
-- *"What containers are available?"*
-- *"Show me documents in the docs container"*
-- *"Find all PDF files from last month"*
-- *"Summarize the quarterly-report.pdf document"*
-- *"Load the full content of research-paper.pdf"*
-
 ## 🏢 Enterprise Deployment
 
-For production deployment on **LangGraph Platform**, store Azure credentials in the `MinimalUserDict` for custom authentication:
+For production deployment on **LangGraph Platform**, authenticate the use using custom auth and store Azure credentials in the AuthContext.
 
-```python
-# For LangGraph Platform deployment
-# Store these in MinimalUserDict instead of environment variables
-azure_config = {
-    "AZURE_CLIENT_ID": "your-application-client-id",
-    "AZURE_TENANT_ID": "your-directory-tenant-id", 
-    "AZURE_CLIENT_SECRET": "your-client-secret"
-}
-```
-
-This demo uses environment variables for simplicity, but enterprise deployments should use proper credential management.
-
-## 🎯 Key Benefits
-
-### Modular Design
-- **Composable tools** - Each tool has a single responsibility
-- **Scalable** - Easy to add new search/filter capabilities  
-- **Efficient** - Only loads content when needed
-- **Extensible** - Ready for semantic search, chunking, embeddings
-
-### Enterprise Ready
-- **Proper authentication** - Service principal support that actually works
-- **Robust error handling** - Graceful failures and helpful error messages
-- **Rich metadata** - Enhanced document properties and context
-- **Production patterns** - Follows best practices for Azure integration
-
-## 📋 Document Metadata
-
-The loaders provide rich metadata for each document:
-
-```python
-{
-    "source": "https://yourstorageaccount.blob.core.windows.net/documents/report.pdf",
-    "blob_name": "report.pdf", 
-    "container": "documents",
-    "storage_account": "yourstorageaccount",
-    "file_size": 1024576,
-    "last_modified": "2024-01-15T10:30:00Z",
-    "content_type": "application/pdf",
-    "element_id": "unique-element-identifier",
-    "page_number": 1,
-    "category": "Header"  # or "Paragraph", "Table", etc.
-}
-```
-
-## 📁 Project Structure
-
-```
-├── azure_blob_entra_container_loader.py  # Container loader + test script
-├── azure_blob_entra_loader.py           # Individual file loader + test script
-├── modular_azure_tools.py               # LangGraph tools (main demo)
-├── modular_agent_example.py             # Interactive agent demo
-├── requirements.txt                     # Dependencies
-├── pyproject.toml                       # Project configuration
-└── README.md                           # This file
-```
-
-## 🔄 Migration from LangChain Built-ins
-
-### Before (LangChain built-in)
-```python
-from langchain_community.document_loaders import AzureBlobStorageContainerLoader
-
-# Often fails with service principals
-loader = AzureBlobStorageContainerLoader(
-    account_url="https://yourstorageaccount.blob.core.windows.net",
-    container="documents"
-)
-```
-
-### After (Custom loader)
-```python
-from azure_blob_entra_container_loader import AzureBlobStorageContainerEntraLoader
-
-# Works reliably with service principals
-loader = AzureBlobStorageContainerEntraLoader(
-    storage_account_name="yourstorageaccount",
-    container="documents"
-)
-```
-
-### Enterprise (LangGraph Tools)
-```python
-from modular_azure_tools import MODULAR_AZURE_TOOLS
-from langgraph.prebuilt import create_react_agent
-
-# Composable, enterprise-ready tools
-agent = create_react_agent(llm, tools=MODULAR_AZURE_TOOLS)
-```
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-1. **Authentication Error**: Ensure service principal has Storage Blob Data Reader role
-2. **Container Not Found**: Verify container name is correct (case-sensitive)
-3. **No Documents**: Check if container has files and file patterns match
-4. **Environment Variables**: Make sure `.env` file is in the correct location
-
-### Debug Steps
-
-```python
-# Test Azure credentials
-from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobServiceClient
-
-credential = DefaultAzureCredential()
-client = BlobServiceClient(
-    account_url="https://yourstorageaccount.blob.core.windows.net",
-    credential=credential
-)
-
-# List containers
-for container in client.list_containers():
-    print(f"Container: {container.name}")
-```
-
-## 📄 License
-
-MIT License
-
+Docs: https://langchain-ai.github.io/langgraph/tutorials/auth/getting_started/
