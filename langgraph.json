@@ -1,0 +1,8 @@
+{
+    "dependencies": ["."],
+    "graphs": {
+      "agent": "./modular_agent_example.py:create_modular_azure_agent"
+    },
+    "env": ".env"
+  }
+  
