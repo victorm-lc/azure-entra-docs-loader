@@ -9,7 +9,7 @@ from typing import List, Optional
 from langchain_core.documents import Document
 from langchain_community.document_loaders.base import BaseLoader
 from langchain_unstructured import UnstructuredLoader
-from azure.identity import DefaultAzureCredential
+from azure.identity import DefaultAzureCredential, ClientSecretCredential
 from azure.storage.blob import BlobServiceClient
 
 
@@ -35,7 +35,11 @@ class AzureBlobStorageEntraLoader(BaseLoader):
         self.storage_account_name = storage_account_name
         self.container_name = container_name
         self.blob_name = blob_name
-        self.credential = credential or DefaultAzureCredential()
+        self.credential = credential or ClientSecretCredential(
+            tenant_id=os.getenv("AZURE_TENANT_ID"),
+            client_id=os.getenv("AZURE_CLIENT_ID"),
+            client_secret=os.getenv("AZURE_CLIENT_SECRET")
+        )
         self.account_url = f"https://{storage_account_name}.blob.core.windows.net"
         
     def load(self) -> List[Document]:
