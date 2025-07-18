@@ -7,9 +7,18 @@ import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from langchain_core.tools import tool
-from azure.identity import DefaultAzureCredential
+from azure.identity import DefaultAzureCredential, ClientSecretCredential
 from azure.storage.blob import BlobServiceClient
 from azure_blob_entra_loader import AzureBlobStorageEntraLoader
+
+
+def _create_azure_credential():
+    """Create Azure credential using explicit ClientSecretCredential for reliability."""
+    return ClientSecretCredential(
+        tenant_id=os.getenv("AZURE_TENANT_ID"),
+        client_id=os.getenv("AZURE_CLIENT_ID"),
+        client_secret=os.getenv("AZURE_CLIENT_SECRET")
+    )
 
 
 @tool
@@ -26,7 +35,7 @@ def list_available_containers(storage_account_name: str) -> str:
         String listing all available containers with metadata
     """
     try:
-        credential = DefaultAzureCredential()
+        credential = _create_azure_credential()
         account_url = f"https://{storage_account_name}.blob.core.windows.net"
         
         blob_service_client = BlobServiceClient(
@@ -78,7 +87,7 @@ def list_documents_in_container(
         String listing all documents in the container with optional metadata
     """
     try:
-        credential = DefaultAzureCredential()
+        credential = _create_azure_credential()
         account_url = f"https://{storage_account_name}.blob.core.windows.net"
         
         blob_service_client = BlobServiceClient(
@@ -203,7 +212,7 @@ def search_documents_by_metadata(
         String listing matching documents with metadata
     """
     try:
-        credential = DefaultAzureCredential()
+        credential = _create_azure_credential()
         account_url = f"https://{storage_account_name}.blob.core.windows.net"
         
         blob_service_client = BlobServiceClient(
